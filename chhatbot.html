@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BookNest Chatbot with Orange Icon</title>
+
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f4f4f4; }
+
+    /* ORANGE FLOATING ICON */
+    #chatbot-icon {
+      position: fixed;
+      bottom: 25px;
+      right: 25px;
+      background-color: tomato;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      font-size: 28px;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+      transition: background-color 0.3s ease;
+      z-index: 1000;
+    }s
+    #chatbot-icon:hover {
+      background-color: darkorange;
+    }
+
+    /* CHATBOT WINDOW — TOUCHING THE BORDER */
+    .chatbot-container {
+      position: fixed;
+      bottom: 0;     /* 👈 touches bottom */
+      right: 0;      /* 👈 touches right */
+      width: 350px;
+      height: 500px;
+      border: 4px solid #70bec0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border-radius: 10px 0 0 0; /* top-left rounded, others flush */
+      background: white;
+      display: none; /* hidden at start */
+      flex-direction: column;
+      font-size: 14px;
+      z-index: 999;
+    }
+
+    .chatbot-header {
+      background-color: tomato;
+      color: black;
+      padding: 15px;
+      font-weight: bold;
+      text-align: center;
+      flex-shrink: 0;
+      position: relative;
+    }
+    /* Close button */
+    .chatbot-close-btn {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      background: none;
+      border: none;
+      color: black;
+      font-size: 20px;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    /* Normal chat view */
+    .chatbot-messages {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      background: #fafafa;
+      display: flex;
+      flex-direction: column;
+    }
+    .chatbot-message {
+      line-height: 1.4;
+      max-width: 80%;
+      margin-bottom: 12px;
+    }
+    .chatbot-message.user {
+      align-self: flex-end;
+      text-align: right;
+    }
+    .chatbot-message.user .message-text {
+      background-color: tomato;
+      color: black;
+      display: inline-block;
+      padding: 8px 12px;
+      border-radius: 15px 15px 0 15px;
+      word-wrap: break-word;
+    }
+    .chatbot-message.bot .message-text {
+      background-color: #e1e1e1;
+      color: #333;
+      display: inline-block;
+      padding: 8px 12px;
+      border-radius: 15px 15px 15px 0;
+      word-wrap: break-word;
+    }
+    .chatbot-message.bot .message-text a { color: tomato; text-decoration: underline; }
+    .chatbot-message.bot .message-text a.link-button { color: black; text-decoration: underline; }
+
+    /* Main options */
+    .chatbot-options, #newCustomerActions {
+      margin-top: auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px 0 0 0;
+      border-top: 1px solid #ddd;
+      background: #f9f9f9;
+      max-width: 100%;
+    }
+    .chatbot-options button, #newCustomerActions a, #newCustomerActions button {
+      flex: 1 1 45%;
+      min-width: 140px;
+      padding: 8px 12px;
+      border: none;
+      background-color: #70bec0;
+      color: black;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background-color 0.3s ease;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .chatbot-options button:hover, #newCustomerActions a:hover, #newCustomerActions button:hover { background-color: #4a9a9c; }
+    #newCustomerActions { flex-direction: column; }
+    #newCustomerActions a, #newCustomerActions button { flex: 1; width: auto; min-width: 140px; max-width: 100%; text-align: center; }
+
+    /* Input */
+    .chatbot-input-area {
+      display: flex;
+      border-top: 1px solid #ddd;
+      flex-shrink: 0;
+      background: white;
+    }
+    .chatbot-input-area input {
+      flex: 1;
+      border: none;
+      padding: 12px 15px;
+      font-size: 14px;
+      outline: none;
+    }
+    .chatbot-input-area button {
+      background-color: tomato;
+      border: none;
+      color: white;
+      padding: 0 20px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background-color 0.3s ease;
+    }
+    .chatbot-input-area button:hover { background-color: #0056b3; }
+
+    /* Link button */
+    .link-button {
+      display: inline-block;
+      padding: 6px 12px;
+      margin-top: 6px;
+      background-color: #70bec0;
+      color: black;
+      border-radius: 15px;
+      text-decoration: none;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    .link-button:hover { background-color: #4a9a9c; color: black; }
+
+    /* ==== CATEGORY VIEW ==== */
+    .category-view { display: none; flex-direction: column; height: 100%; }
+    .category-topbar {
+      position: sticky;
+      top: 0;
+      background: #fff;
+      z-index: 2;
+      padding: 8px 12px;
+      border-bottom: 1px solid #eee;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 8px;
+    }
+    .back-btn { background: #70bec0; border: none; color: black; border-radius: 16px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+    .category-title { font-weight: bold; color: #333; text-align: center; }
+
+    /* Search */
+    .category-search {
+      display: flex; align-items: center; gap: 6px; background: #f5f7f7; border: 1px solid #e6eeee; border-radius: 16px; padding: 4px 8px;
+    }
+    .category-search input {
+      border: none; outline: none; background: transparent; width: 100%; font-size: 13px; padding: 6px 0;
+    }
+    .category-search button {
+      border: none; background: transparent; cursor: pointer; font-size: 16px; padding: 4px; color: #666;
+    }
+    .category-search button:hover { color: #333; }
+
+    .category-grid {
+      padding: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; overflow-y: auto; flex: 1;
+      background: #fafafa;
+    }
+    .category-grid button {
+      min-height: 38px; border: none; border-radius: 16px; background: #70bec0; color: black; padding: 8px 10px; cursor: pointer; text-align: center; font-size: 13px;
+    }
+    .category-grid button:hover { background: #4a9a9c; }
+    .category-grid .empty { color: #666; grid-column: 1 / -1; text-align: center; padding: 16px 0; }
+
+    .category-pager { display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid #eee; background: #fff; }
+    .category-pager button { flex: 1; border: none; border-radius: 16px; padding: 8px 10px; background: #e9f2f2; cursor: pointer; }
+    .category-pager button:hover { background: #d7e7e7; }
+
+    /* Live chat */
+    #liveChatContainer { display: none; flex-direction: column; height: 100%; border-top: 1px solid #ddd; padding: 10px; background: #fafafa; }
+    #liveChatMessages { flex: 1; overflow-y: auto; margin-bottom: 10px; font-size: 14px; }
+    #liveChatInput { flex: 1; padding: 8px; font-size: 14px; }
+    #liveChatSendBtn { background-color: tomato; color: white; border: none; padding: 8px 15px; cursor: pointer; }
+    #liveChatCloseBtn { margin-top: 10px; background: #70bec0; border: none; padding: 8px; cursor: pointer; border-radius: 5px; }
+
+    /* small screen tweak */
+    @media (max-width: 480px) {
+      .chatbot-container {
+        width: 100%;
+        height: 70vh;
+        border-radius: 10px 10px 0 0;
+      }
+    }
+/* Live chat messages alignment */
+.live-message {
+  margin-bottom: 10px;
+  display: flex;
+}
+
+.live-message.user {
+  justify-content: flex-end;
+}
+.live-message.agent {
+  justify-content: flex-start;
+}
+.live-message.system {
+  justify-content: center;
+  font-style: italic;
+  color: #555;
+}
+
+.live-message-text {
+  max-width: 70%;
+  padding: 8px 12px;
+  border-radius: 15px;
+  word-wrap: break-word;
+}
+
+.live-message.user .live-message-text {
+  background-color: tomato;
+  color: black;
+  border-radius: 15px 15px 0 15px;
+}
+
+.live-message.agent .live-message-text {
+  background-color: #e1e1e1;
+  color: #333;
+  border-radius: 15px 15px 15px 0;
+}
+
+.live-message.system .live-message-text {
+  background: #f0f0f0;
+  color: #555;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+  </style>
+</head>
+<body>
+
+  <!-- ORANGE FLOATING ICON -->
+  <button id="chatbot-icon" aria-label="Open chat">💬</button>
+
+  <!-- CHATBOT (hidden initially) -->
+  <div class="chatbot-container" id="chatbot">
+    <div class="chatbot-header">
+      Booknest Bookstore Assistant
+      <button class="chatbot-close-btn" id="chatbotCloseBtn" aria-label="Close chat">&times;</button>
+    </div>
+
+    <!-- Normal chat view -->
+    <div class="chatbot-messages" id="chatbotMessages"></div>
+
+    <!-- Category view -->
+    <div class="category-view" id="categoryView">
+      <div class="category-topbar">
+        <button id="backToMainBtn" class="back-btn">⬅ Back</button>
+        <div class="category-title" id="categoryTitle">Categories</div>
+        <div class="category-search" title="Type to filter (press / to focus)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <input id="categorySearchInput" placeholder="Search categories..." aria-label="Search categories" />
+          <button id="categorySearchClear" aria-label="Clear search" title="Clear" style="display:none">×</button>
+        </div>
+      </div>
+      <div class="category-grid" id="categoryGrid"></div>
+      <div class="category-pager" id="categoryPager" style="display:none;">
+        <button id="pagePrevBtn">◀ Back</button>
+        <button id="pageNextBtn">More ➡</button>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <form id="chatbotForm" class="chatbot-input-area" autocomplete="off">
+      <input type="text" id="userInput" placeholder="Type your message here..." required />
+      <button type="submit">Send</button>
+    </form>
+
+    <!-- Live Chat -->
+    <div id="liveChatContainer">
+      <div id="liveChatMessages"></div>
+      <div style="display: flex;">
+        <input type="text" id="liveChatInput" placeholder="Type your message..." />
+        <button id="liveChatSendBtn">Send</button>
+      </div>
+      <button id="liveChatCloseBtn">Close Live Chat</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script>
+    const BASE_URL = "http://127.0.0.1:5000";
+// ================= SOCKET INITIALIZATION =================
+const socket = io("http://127.0.0.1:5000", {
+  transports: ["websocket"],
+  reconnection: true
+});
+
+let liveChatRoomId = null;
+
+socket.on("connect", () => {
+  console.log("✅ Customer connected:", socket.id);
+});
+
+socket.on("disconnect", () => {
+  console.log("❌ Customer disconnected");
+  if (liveChatRoomId) {
+    appendLiveChatMessage("System", "Connection lost. Please refresh.");
+  }
+});
+
+
+    // ====== TOGGLE ICON <-> CHATBOT ======
+    const chatbotIcon = document.getElementById('chatbot-icon');
+    const chatbotContainer = document.getElementById('chatbot');
+    const chatbotCloseBtn = document.getElementById('chatbotCloseBtn');
+
+    chatbotIcon.addEventListener('click', () => {
+      chatbotContainer.style.display = 'flex';
+      chatbotIcon.style.display = 'none';  // hide icon when open
+      // optional: restart chat on each open
+      startChat();
+    });
+
+    chatbotCloseBtn.addEventListener('click', () => {
+      chatbotContainer.style.display = 'none';
+      chatbotIcon.style.display = 'block'; // show icon again
+    });
+
+    // ----- DOM refs -----
+    const chatbotMessages = document.getElementById('chatbotMessages');
+    const chatbotForm = document.getElementById('chatbotForm');
+    const userInput = document.getElementById('userInput');
+
+    // Category view refs
+    const categoryView = document.getElementById('categoryView');
+    const categoryTitle = document.getElementById('categoryTitle');
+    const categoryGrid = document.getElementById('categoryGrid');
+    const categoryPager = document.getElementById('categoryPager');
+    const pagePrevBtn = document.getElementById('pagePrevBtn');
+    const pageNextBtn = document.getElementById('pageNextBtn');
+    const backToMainBtn = document.getElementById('backToMainBtn');
+    const categorySearchInput = document.getElementById('categorySearchInput');
+    const categorySearchClear = document.getElementById('categorySearchClear');
+
+    // Live chat refs
+    const liveChatContainer = document.getElementById('liveChatContainer');
+    const liveChatMessages = document.getElementById('liveChatMessages');
+    const liveChatInput = document.getElementById('liveChatInput');
+    const liveChatSendBtn = document.getElementById('liveChatSendBtn');
+    const liveChatCloseBtn = document.getElementById('liveChatCloseBtn');
+
+    // Fixed rows
+    const initialOptions = document.createElement('div');
+    initialOptions.className = 'chatbot-options';
+    initialOptions.id = 'initialOptions';
+    initialOptions.innerHTML = `
+      <button data-input="existing customer">Yes, I am an existing customer</button>
+      <button data-input="new customer">No, I am new here</button>
+    `;
+
+    const newCustomerActions = document.createElement('div');
+    newCustomerActions.id = 'newCustomerActions';
+    newCustomerActions.style.display = 'none';
+    newCustomerActions.innerHTML = `
+      <a href="http://127.0.0.1:5000/login" target="_blank" rel="noopener noreferrer">
+  Log in to BookNest
+</a>
+      <button id="goToMainOptionsBtn">Go to Main Options</button>
+    `;
+
+    const chatbotOptions = document.createElement('div');
+    chatbotOptions.className = 'chatbot-options';
+    chatbotOptions.id = 'chatbotOptions';
+    chatbotOptions.style.display = 'none';
+    chatbotOptions.innerHTML = `
+      <button data-input="order status">📦 Order Status</button>
+      <button data-input="my orders">📖 My Orders</button>
+      <button data-input="customer service">📞 Customer Service</button>
+      <button data-input="categories">📚 Categories</button>
+      <button data-input="recommend">📚 Recommend Books</button>
+      <button data-input="trending books">🔥 Trending Books</button>
+      <button data-input="thank you">🙏 Thank You</button>
+    `;
+
+    chatbotMessages.appendChild(initialOptions);
+    chatbotMessages.appendChild(newCustomerActions);
+    chatbotMessages.appendChild(chatbotOptions);
+
+    const responses = {
+      "order status": "You can check your order status by logging into your BookNest account and visiting the 'My Orders' section.",
+      "my orders": `You can view your orders anytime by clicking 
+<a href="http://127.0.0.1:5000/account/my-orders" target="_blank" rel="noopener noreferrer">here</a>.`,
+
+      "delivery time": "Our delivery is usually very fast. Many customers have received their books within 2 days, sometimes even earlier than expected!",
+      "customer service": "Our customer service team is excellent and ready to help you with any queries or issues you may have.",
+      "recommend books": "I can help you find books based on your interests. What genre or author do you prefer?",
+      "trending books": `Check out the latest trending books on BookNest 
+<a href="http://127.0.0.1:5000/trending" target="_blank" rel="noopener noreferrer">here</a>.`,
+
+      "thank you": "You're welcome! If you have any more questions, feel free to ask.",
+      "default": "I'm here to help you with your book orders, delivery, returns, and more. Could you please specify your question?"
+    };
+
+    let waitingForOrderId = false;
+    let waitingForRecommendation = false;
+    let isExistingCustomer = null;
+
+    // ====== MAIN CATEGORIES: label -> DB id ======
+    const MAIN_CATEGORY_BUTTONS = [
+      { id: 63, label: "Antiques & Collectibles" },
+      { id: 59, label: "Architecture & Designing" },
+      { id: 64, label: "Art & Creativity" },
+      { id: 51, label: "Automotive & Transportation" },
+      { id: 3,  label: "Bibles & References" },
+      { id: 4,  label: "Biography & Autobiography" },
+      { id: 6,  label: "Business & Economic" },
+      { id: 7,  label: "Children's Fiction" },
+      { id: 8,  label: "Children's Nonfiction" },
+      { id: 9,  label: "Comics & Mangas" },
+      { id: 10, label: "Computer & Internet" },
+      { id: 11, label: "Cook Book" },
+      { id: 12, label: "Crafts & Hobbies" },
+      { id: 13, label: "Designs & Fashion" },
+      { id: 14, label: "Drama" },
+      { id: 16, label: "Family Life & Parenting" },
+      { id: 17, label: "Fiction" },
+      { id: 19, label: "Games & Activities" },
+      { id: 20, label: "Gardening" },
+      { id: 21, label: "Health & Fitness" },
+      { id: 22, label: "History" },
+      { id: 23, label: "Home & Lifestyle" },
+      { id: 24, label: "Humor" },
+      { id: 25, label: "Language Arts & Disciplines" },
+      { id: 18, label: "Language Learning" },
+      { id: 26, label: "Law" },
+      { id: 27, label: "Literary Collections" },
+      { id: 28, label: "Literary Criticism" },
+      { id: 29, label: "Mathematics" },
+      { id: 30, label: "Medical" },
+      { id: 31, label: "Music & Musical Instruments" },
+      { id: 34, label: "Performing Arts" },
+      { id: 36, label: "Pets & animal care" },
+      { id: 37, label: "Philosophy" },
+      { id: 42, label: "Recorded Music" },
+      { id: 5, label: "Body,Mind,spirit" },
+      { id: 52, label: "travel" },
+      { id: 55, label: "Video Games" },
+      { id: 37, label: "Video & DVD Genre" },
+      { id: 38, label: "Photography & collections" },
+      { id: 39, label: "Poetry" },
+      { id: 40, label: "Political Science" },
+      { id: 5,  label: "Positive Energy & Spirituality" },
+      { id: 41, label: "Psychology" },
+      { id: 43, label: "Reference books & Maps" },
+      { id: 44, label: "Religion" },
+      { id: 45, label: "Science" },
+      { id: 52, label: "Travel & Tourism" },
+      { id: 53, label: "True Crime" },
+      { id: 32, label: "Wildlife & Nature" },
+      { id: 56, label: "Young Adult Fiction" },
+      { id: 57, label: "Young Adult Nonfiction" },
+      { id: 46, label: "Self-Help" },
+      { id: 47, label: "Social Science" },
+      { id: 48, label: "Sports & Recreation" },
+      { id: 33, label: "Stationery & Toys" },
+      { id: 49, label: "Study Aids & Exam Preparation" },
+      { id: 15, label: "Study Material" },
+      { id: 50, label: "Technology & Engineering" }
+    ];
+
+    // ====== Basic helpers ======
+    function addMessage(text, sender) {
+      const messageDiv = document.createElement('div');
+      messageDiv.classList.add('chatbot-message', sender);
+      const messageText = document.createElement('div');
+      messageText.classList.add('message-text');
+      if (sender === 'bot') messageText.innerHTML = text; else messageText.textContent = text;
+      messageDiv.appendChild(messageText);
+
+      const rows = [initialOptions, newCustomerActions, chatbotOptions].filter(el => el.style.display !== 'none');
+      if (rows.length > 0) chatbotMessages.insertBefore(messageDiv, rows[0]);
+      else chatbotMessages.appendChild(messageDiv);
+      chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
+    }
+
+    async function apiFetchCategories(parentId) {
+      try {
+        const res = await fetch(`http://localhost:5000/api/categories?parent_id=${parentId}`);
+        if (!res.ok) throw new Error('Failed to fetch categories');
+        return await res.json();
+      } catch (e) {
+        console.error(e);
+        return [];
+      }
+    }
+
+    // ====== CATEGORY mode ======
+    const PAGE_SIZE = 8;
+    let currentList = [];
+    let filteredList = [];
+    let currentPage = 0;
+    let stack = [];
+    let currentDepth = 0;
+
+    function hideMainChatUI() {
+      chatbotMessages.style.display = 'none';
+      chatbotForm.style.display = 'none';
+      initialOptions.style.display = 'none';
+      newCustomerActions.style.display = 'none';
+      chatbotOptions.style.display = 'none';
+    }
+    function showMainChatUI() {
+      categoryView.style.display = 'none';
+      chatbotMessages.style.display = 'flex';
+      chatbotForm.style.display = 'flex';
+    }
+    function getActiveList() {
+      return (categorySearchInput.value.trim() ? filteredList : currentList);
+    }
+    function enterCategoriesMode() {
+      hideMainChatUI();
+      categoryView.style.display = 'flex';
+      stack = [];
+      currentDepth = 0;
+      categoryTitle.textContent = 'Categories';
+      categorySearchInput.value = '';
+      categorySearchClear.style.display = 'none';
+      loadMainCategories();
+      setTimeout(() => categorySearchInput.focus(), 0);
+    }
+    function exitCategoriesModeToMain() {
+      categoryView.style.display = 'none';
+      showMainChatUI();
+      chatbotOptions.style.display = 'flex';
+      addMessage("Here are the main options:", 'bot');
+    }
+    function escapeHtml(str){
+      return str.replace(/[&<>"]+/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]));
+    }
+    function highlight(text, query){
+      if(!query) return escapeHtml(text);
+      const q = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return escapeHtml(text).replace(new RegExp(`(${q})`, 'ig'), '<mark>$1</mark>');
+    }
+    function normalize(s){ return s.normalize('NFKD').toLowerCase(); }
+    function applySearchFilter(q){
+      q = q.trim();
+      if(!q){ filteredList = currentList.slice(); currentPage = 0; categorySearchClear.style.display = 'none'; return; }
+      categorySearchClear.style.display = 'inline';
+      const nq = normalize(q);
+      filteredList = currentList.filter(c => normalize(c.title || c.slug || '').includes(nq));
+      currentPage = 0;
+    }
+    function debounce(fn, wait=150){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), wait); }; }
+    const debouncedFilter = debounce((val)=>{ applySearchFilter(val); renderCategoryGrid(); }, 120);
+
+    categorySearchInput.addEventListener('input', (e)=>{ debouncedFilter(e.target.value); });
+    categorySearchInput.addEventListener('keydown', (e)=>{
+      if(e.key==='Escape'){ categorySearchInput.value=''; applySearchFilter(''); renderCategoryGrid(); categorySearchInput.blur(); }
+    });
+    categorySearchClear.addEventListener('click', ()=>{
+      categorySearchInput.value=''; applySearchFilter(''); renderCategoryGrid(); categorySearchInput.focus();
+    });
+    window.addEventListener('keydown', (e)=>{
+      if(categoryView.style.display==='flex' && e.key==='/'){
+        e.preventDefault();
+        categorySearchInput.focus();
+      }
+    });
+
+   function openSearch(term) {
+  const q = term || '';
+  window.open(`${BASE_URL}/search?s=${encodeURIComponent(q)}`, '_blank');
+}
+
+
+    function renderCategoryGrid() {
+      const list = getActiveList();
+      categoryGrid.innerHTML = '';
+      const start = currentPage * PAGE_SIZE;
+      const pageItems = list.slice(start, start + PAGE_SIZE);
+
+      if (pageItems.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        const q = categorySearchInput.value.trim();
+        empty.innerHTML = q
+          ? `No categories match "<strong>${escapeHtml(q)}</strong>".<br/>`
+            + `<a href="http://127.0.0.1:5000/search?s=${encodeURIComponent(q)}" target="_blank" class="link-button">Search site for "${escapeHtml(q)}"</a>`
+          : 'No categories found.';
+        categoryGrid.appendChild(empty);
+        categoryPager.style.display = 'none';
+        return;
+      }
+
+      pageItems.forEach(cat => {
+        const btn = document.createElement('button');
+        const title = (cat.title || cat.slug || `#${cat.id}`);
+        btn.dataset.title = title;
+        btn.innerHTML = highlight(title, categorySearchInput.value.trim());
+        btn.title = cat.description || '';
+
+        if (currentDepth >= 1) {
+          btn.addEventListener('click', () => openSearch(title));
+        } else {
+          btn.addEventListener('click', () => openCategory(cat));
+        }
+        categoryGrid.appendChild(btn);
+      });
+
+      const hasPrev = currentPage > 0;
+      const hasNext = (start + PAGE_SIZE) < list.length;
+      categoryPager.style.display = (hasPrev || hasNext) ? 'flex' : 'none';
+      pagePrevBtn.disabled = !hasPrev;
+      pageNextBtn.disabled = !hasNext;
+    }
+
+    pagePrevBtn.addEventListener('click', () => {
+      if (currentPage > 0) { currentPage--; renderCategoryGrid(); }
+    });
+    pageNextBtn.addEventListener('click', () => {
+      const list = getActiveList();
+      if ((currentPage + 1) * PAGE_SIZE < list.length) { currentPage++; renderCategoryGrid(); }
+    });
+    backToMainBtn.addEventListener('click', exitCategoriesModeToMain);
+
+    async function loadMainCategories() {
+      currentList = MAIN_CATEGORY_BUTTONS.map(x => ({ id: x.id, title: x.label }));
+      filteredList = currentList.slice();
+      currentPage = 0;
+      categoryTitle.textContent = 'Categories';
+      renderCategoryGrid();
+    }
+
+    async function openCategory(cat) {
+      stack.push({ title: categoryTitle.textContent, list: currentList.slice(), page: currentPage, depth: currentDepth });
+
+      categoryTitle.textContent = cat.title || 'Subcategories';
+      const sub = await apiFetchCategories(cat.id);
+      if (sub.length === 0) {
+        const searchTerm = cat.title || cat.slug || '';
+        openSearch(searchTerm);
+        const prev = stack.pop();
+        if (prev) {
+          categoryTitle.textContent = prev.title;
+          currentList = prev.list;
+          applySearchFilter(categorySearchInput.value.trim());
+          currentPage = prev.page;
+          currentDepth = prev.depth;
+          renderCategoryGrid();
+        }
+        return;
+      }
+      currentList = sub;
+      applySearchFilter(categorySearchInput.value.trim());
+      currentPage = 0;
+      currentDepth = stack.length;
+      renderCategoryGrid();
+    }
+
+    // ====== Chat flows ======
+    function getResponse(input) {
+      input = input.toLowerCase();
+
+      if (waitingForOrderId) {
+        const orderIdMatch = input.match(/\b[a-zA-Z0-9]{4,}\b/);
+        if (orderIdMatch) {
+          const orderId = orderIdMatch[0];
+          waitingForOrderId = false;
+          return { 
+  text: `You can track your order 
+  <a href="http://127.0.0.1:5000/account/track-order?order_id=${orderId}" target="_blank">here</a>.`,
+  reset: false };
+
+        }
+        return { text: "Please provide a valid order ID (at least 4 characters).", reset: false };
+      }
+
+      if (waitingForRecommendation) {
+        waitingForRecommendation = false;
+        return {
+          text: `Here are some books related to "<strong>${input}</strong>":<br>
+                <a href="http://127.0.0.1:5000/search?s=${encodeURIComponent(input)}" target="_blank" class="link-button">View books</a>`,
+          reset: false
+        };
+      }
+
+      if (input.includes("order status") || input.includes("track order")) {
+        waitingForOrderId = true; return { text: "Sure! Please provide your order ID.", reset: false };
+      }
+      if (input.includes("my orders")) return { text: responses["my orders"], reset: false };
+      if (input.includes("delivery")) return { text: responses["delivery time"], reset: false };
+      if (input.includes("customer service")) return { text: "", reset: false, liveChat: true };
+      if (input.includes("recommend") || input.includes("suggest")) {
+        waitingForRecommendation = true; return { text: "I can help! Please type a book name or a category.", reset: false };
+      }
+      if (input.includes("trending")) return { text: responses["trending books"], reset: false };
+      if (input.includes("thank")) return { text: responses["thank you"], reset: true };
+      return { text: responses["default"], reset: false };
+    }
+
+    function startChat() {
+      waitingForOrderId = false;
+      waitingForRecommendation = false;
+      isExistingCustomer = null;
+      chatbotMessages.innerHTML = '';
+      chatbotMessages.appendChild(initialOptions);
+      chatbotMessages.appendChild(newCustomerActions);
+      chatbotMessages.appendChild(chatbotOptions);
+      initialOptions.style.display = 'flex';
+      newCustomerActions.style.display = 'none';
+      chatbotOptions.style.display = 'none';
+      addMessage("👋 Hello! Welcome to BookNest. Are you an existing customer?", 'bot');
+    }
+
+    // Existing/new toggle
+    initialOptions.addEventListener('click', (e) => {
+      if (e.target.tagName !== 'BUTTON') return;
+      const inputText = e.target.getAttribute('data-input');
+      addMessage(inputText, 'user');
+      if (inputText === "existing customer") {
+        isExistingCustomer = true;
+        initialOptions.style.display = 'none';
+        chatbotOptions.style.display = 'flex';
+        newCustomerActions.style.display = 'none';
+        setTimeout(() => addMessage("Great! How can I assist you today?", 'bot'), 600);
+      } else {
+        isExistingCustomer = false;
+        initialOptions.style.display = 'none';
+        newCustomerActions.style.display = 'flex';
+        chatbotOptions.style.display = 'none';
+      }
+    });
+
+    newCustomerActions.addEventListener('click', (e) => {
+      if (e.target.id === 'goToMainOptionsBtn') {
+        newCustomerActions.style.display = 'none';
+        chatbotOptions.style.display = 'flex';
+        addMessage("Here are the main options:", 'bot');
+      }
+    });
+
+    // Main options click handler
+    chatbotOptions.addEventListener('click', (e) => {
+      if (e.target.tagName !== 'BUTTON') return;
+      const inputText = e.target.getAttribute('data-input');
+      addMessage(inputText, 'user');
+
+     if (inputText === 'customer service') {
+  joinLiveChatRoom();
+  return;
+}
+
+      if (inputText === 'categories') {
+        enterCategoriesMode();
+        return;
+      }
+
+      setTimeout(() => {
+        const responseObj = getResponse(inputText);
+        addMessage(responseObj.text, 'bot');
+        if (responseObj.reset) startChat();
+      }, 600);
+    });
+
+    // Text submit
+    chatbotForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = userInput.value.trim();
+      if (!text) return;
+      addMessage(text, 'user');
+      userInput.value = '';
+      setTimeout(() => {
+        const responseObj = getResponse(text);
+        if (responseObj.liveChat) {
+          joinLiveChatRoom();
+
+
+        } else {
+          addMessage(responseObj.text, 'bot');
+          if (responseObj.reset) startChat();
+
+        }
+      }, 600);
+    });
+
+// ====== Live chat ======
+function appendLiveChatMessage(sender, message) {
+  const msgDiv = document.createElement("div");
+  msgDiv.classList.add("live-message");
+
+  const msgText = document.createElement("div");
+  msgText.classList.add("live-message-text");
+
+  if (sender === "You") {
+    msgDiv.classList.add("user");  // align right
+    msgText.textContent = message;
+  } else if (sender === "Agent") {
+    msgDiv.classList.add("agent"); // align left
+    msgText.textContent = message;
+  } else {
+    msgDiv.classList.add("system"); // center or left
+    msgText.textContent = message;
+  }
+
+  msgDiv.appendChild(msgText);
+  liveChatMessages.appendChild(msgDiv);
+  liveChatMessages.scrollTop = liveChatMessages.scrollHeight;
+}
+
+function joinLiveChatRoom() {
+  chatbotMessages.style.display = 'none';
+  chatbotForm.style.display = 'none';
+  initialOptions.style.display = 'none';
+  newCustomerActions.style.display = 'none';
+  chatbotOptions.style.display = 'none';
+  categoryView.style.display = 'none';
+
+  liveChatContainer.style.display = 'flex';
+  liveChatMessages.innerHTML = "";
+
+  socket.emit("join_chat"); // ✅ no payload
+
+  socket.off("joined_queue");
+  socket.off("chat_message");
+  socket.off("chat_ended");
+
+  socket.on("joined_queue", ({ roomId, message }) => {
+    liveChatRoomId = roomId;
+    appendLiveChatMessage("System", message);
+  });
+
+  socket.on("chat_message", ({ sender, message }) => {
+    appendLiveChatMessage(
+      sender === "agent" ? "Agent" :
+      sender === "user" ? "You" :
+      "System",
+      message
+    );
+  });
+
+  socket.on("chat_ended", ({ message }) => {
+    appendLiveChatMessage("System", message);
+  });
+}
+
+function sendLiveChatMessage() {
+  const message = liveChatInput.value.trim();
+  if (!message || !liveChatRoomId) return;
+
+  socket.emit("chat_message", { roomId: liveChatRoomId, sender: "user", message });
+
+  liveChatInput.value = "";
+}
+
+liveChatSendBtn.addEventListener("click", sendLiveChatMessage);
+liveChatInput.addEventListener("keypress", (e) => { 
+  if (e.key === "Enter") sendLiveChatMessage();
+});
+
+
+liveChatCloseBtn.addEventListener("click", () => {
+  liveChatContainer.style.display = "none";
+  liveChatMessages.innerHTML = "";
+  liveChatRoomId = null;
+
+  chatbotMessages.style.display = 'flex';
+  chatbotForm.style.display = 'flex';
+
+  startChat();
+});
+
+  </script>
+</body>
+</html>
