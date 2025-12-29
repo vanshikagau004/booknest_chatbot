@@ -40,7 +40,7 @@ BookNest-Chatbot/
 
 ## Team Members
 - Vanshika Gautam  
-- [Add other team members if any]
+
 
 ---
 
