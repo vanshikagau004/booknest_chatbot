@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Dashboard - Boganto Customer Service</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background: #f4f4f4;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .dashboard {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        width: 400px;
+        max-width: 90vw;
+    }
+    .status {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 5px;
+        text-align: center;
+        font-weight: bold;
+    }
+    .status-disconnected { background: #ffebee; color: #c62828; }
+    .status-connected { background: #e8f5e8; color: #2e7d32; }
+    .status-waiting { background: #fff3e0; color: #ef6c00; }
+    .status-chatting { background: #e3f2fd; color: #1565c0; }
+
+    button {
+        padding: 10px 15px;
+        margin: 5px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background 0.3s;
+    }
+    .connect-btn { background: #4caf50; color: white; }
+    .connect-btn:hover { background: #45a049; }
+    .help-btn { background: #2196f3; color: white; display: none; }
+    .help-btn:hover { background: #1976d2; }
+    .end-btn { background: #f44336; color: white; display: none; }
+    .end-btn:hover { background: #d32f2f; }
+
+    .queue-info { display: none; margin: 10px 0; text-align: center; }
+
+    .chat-container {
+        display: none;
+        flex-direction: column;
+        height: 300px;
+        border: 1px solid #ddd;
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 5px;
+    }
+    .chat-messages { flex: 1; overflow-y: auto; border: 1px solid #eee; padding: 10px; background: #fafafa; margin-bottom: 10px; }
+    .message-input-area { display: flex; gap: 10px; }
+    .message-input { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px; }
+    .send-btn { background: #2196f3; color: white; padding: 8px 15px; }
+    .send-btn:hover { background: #1976d2; }
+
+    .message { margin: 5px 0; padding: 5px; border-radius: 3px; }
+    .message.customer { background: #e3f2fd; }
+    .message.agent { background: #e8f5e8; text-align: right; }
+    .message.system { background: #fff3e0; font-style: italic; }
+</style>
+</head>
+<body>
+
+<div class="dashboard">
+    <h1>Customer Service Agent Dashboard</h1>
+    
+    <div id="status" class="status status-disconnected">Disconnected</div>
+    
+    <button id="connectBtn" class="connect-btn">Connect as Agent</button>
+    
+    <div id="queueInfo" class="queue-info">
+        <strong>Pending Customers:</strong> <span id="pendingCount">0</span>
+    </div>
+    
+    <button id="helpNextBtn" class="help-btn">Help Next Customer</button>
+    <button id="endChatBtn" class="end-btn">End Chat</button>
+    
+    <div id="chatContainer" class="chat-container">
+        <div id="chatMessages" class="chat-messages"></div>
+        <div class="message-input-area">
+            <input type="text" id="messageInput" placeholder="Type your message..." disabled>
+            <button id="sendBtn" class="send-btn" disabled>Send</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+const SERVER_URL = "http://localhost:5000";
+let socket = null;
+let currentRoomId = null;
+const agentId = "agent_" + Math.floor(Math.random() * 10000);
+
+// UI elements
+const statusEl = document.getElementById("status");
+const connectBtn = document.getElementById("connectBtn");
+const helpNextBtn = document.getElementById("helpNextBtn");
+const endChatBtn = document.getElementById("endChatBtn");
+const queueInfoEl = document.getElementById("queueInfo");
+const pendingCountEl = document.getElementById("pendingCount");
+const chatContainer = document.getElementById("chatContainer");
+const chatMessages = document.getElementById("chatMessages");
+const messageInput = document.getElementById("messageInput");
+const sendBtn = document.getElementById("sendBtn");
+
+// Initialize socket
+socket = io(SERVER_URL, { autoConnect: false });
+
+// ---------------- Socket Listeners ----------------
+socket.on("connect", () => {
+    console.log("Agent connected");
+    statusEl.textContent = "Connected and ready";
+    statusEl.className = "status status-connected";
+    connectBtn.textContent = "Disconnect";
+    helpNextBtn.style.display = "inline-block";
+    queueInfoEl.style.display = "block";
+
+    socket.emit("agent_join", { agentId });
+});
+
+socket.on("queue_update", ({ pending }) => {
+    pendingCountEl.textContent = pending;
+    if(pending === 0 && !currentRoomId){
+        statusEl.textContent = "Connected, no pending customers";
+        statusEl.className = "status status-waiting";
+    }
+});
+    
+socket.on("assigned_to_user", ({ roomId }) => {
+    currentRoomId = roomId;
+    chatContainer.style.display = "flex";
+    messageInput.disabled = false;
+    sendBtn.disabled = false;
+    helpNextBtn.style.display = "none";
+    endChatBtn.style.display = "inline-block";
+    statusEl.textContent = "Chatting with customer";
+    statusEl.className = "status status-chatting";
+    appendMessage("System", "✍ You can start typing now.");
+
+    appendMessage("System", "You are now chatting with a customer.");
+});
+
+socket.on("chat_message", ({ sender, message }) => {
+    if (sender === "user") {
+        appendMessage("Customer", message);
+    } else if (sender === "agent") {
+        appendMessage("You", message);
+    } else if (sender === "system") {
+        appendMessage("System", message);
+    }
+});
+
+socket.on("chat_ended", ({ message }) => {
+    if(currentRoomId && roomId === currentRoomId){
+        appendMessage("System", message);
+        endChat();
+    }
+});
+
+socket.on("disconnect", () => {
+    console.log("Disconnected");
+    resetDashboard();
+});
+
+// ---------------- Functions ----------------
+function appendMessage(sender, message){
+    const msgDiv = document.createElement("div");
+    msgDiv.classList.add("message");
+
+    if (sender === "Customer") {
+        msgDiv.classList.add("customer");
+    } else if (sender === "You") {
+        msgDiv.classList.add("agent");
+    } else {
+        msgDiv.classList.add("system");
+    }
+
+    msgDiv.textContent = `${sender}: ${message}`;
+    chatMessages.appendChild(msgDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function sendMessage(){
+    const msg = messageInput.value.trim();
+    if(!msg || !currentRoomId) return;
+    socket.emit("chat_message", {
+        roomId: currentRoomId,
+        sender: "agent",
+        message: msg
+    });
+    messageInput.value = "";
+}
+
+function endChat(){
+    if(currentRoomId){
+        socket.emit("agent_end_chat", { roomId: currentRoomId });
+        currentRoomId = null;
+    }
+    appendMessage("System", "Chat ended. Ready for next customer.");
+    statusEl.textContent = "Ready for next customer";
+    statusEl.className = "status status-connected";
+    helpNextBtn.style.display = "inline-block";
+    endChatBtn.style.display = "none";
+    chatContainer.style.display = "none";
+    messageInput.disabled = true;
+    sendBtn.disabled = true;
+    chatMessages.innerHTML = "";
+}
+
+
+function resetDashboard(){
+    statusEl.textContent = "Disconnected";
+    statusEl.className = "status status-disconnected";
+    connectBtn.textContent = "Connect as Agent";
+    helpNextBtn.style.display = "none";
+    endChatBtn.style.display = "none";
+    chatContainer.style.display = "none";
+    queueInfoEl.style.display = "none";
+    currentRoomId = null;
+    chatMessages.innerHTML = "";
+    messageInput.disabled = true;
+    sendBtn.disabled = true;
+}
+
+// ---------------- Event Listeners ----------------
+connectBtn.addEventListener("click", () => {
+    if(socket.connected) return socket.disconnect();
+    socket.connect();
+});
+
+helpNextBtn.addEventListener("click", () => {
+    if(socket.connected) socket.emit("agent_help_next");
+});
+
+endChatBtn.addEventListener("click", endChat);
+
+sendBtn.addEventListener("click", sendMessage);
+messageInput.addEventListener("keypress", (e) => {
+    if(e.key === "Enter") sendMessage();
+});
+</script>
+</body>
+</html>
