@@ -75,6 +75,9 @@ This project requires the following Python packages:
 ## License
 This project is for educational purposes and can be shared with proper attribution.
 
+## outputs
+<img width="1905" height="1009" alt="Screenshot 2025-12-30 183826" src="https://github.com/user-attachments/assets/1cb47277-7813-43f2-97e8-072845b61425" />
+
 
 
 
