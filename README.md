@@ -77,6 +77,11 @@ This project is for educational purposes and can be shared with proper attributi
 
 ## outputs
 <img width="1905" height="1009" alt="Screenshot 2025-12-30 183826" src="https://github.com/user-attachments/assets/1cb47277-7813-43f2-97e8-072845b61425" />
+<img width="1269" height="996" alt="Screenshot 2025-12-30 183845" src="https://github.com/user-attachments/assets/a65df080-f098-40f7-9aed-38e0a18fd3cc" />
+<img width="1893" height="989" alt="Screenshot 2025-12-30 184250" src="https://github.com/user-attachments/assets/3c792fa5-db7b-4da2-9259-1485b7573275" />
+<img width="1912" height="1020" alt="Screenshot 2025-12-30 184520" src="https://github.com/user-attachments/assets/884902ae-8151-4780-99c8-1e3aa204376a" />
+<img width="1285" height="654" alt="Screenshot 2025-12-30 184941" src="https://github.com/user-attachments/assets/61cfb62c-2e04-4850-9b36-8af3b4c8e14d" />
+
 
 
 
